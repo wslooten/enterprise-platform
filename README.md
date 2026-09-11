@@ -426,3 +426,35 @@ After that, the project will expand into Terraform, CI/CD, monitoring, secrets m
 ---
 
 > **25+ years of enterprise integration experience — continuously evolving toward modern cloud-native platform engineering.**
+
+## Security
+
+Authentication is implemented using Microsoft Entra ID (OAuth2 Client Credentials).
+
+The API is protected by Azure API Management using the `validate-jwt` policy.
+
+Implemented features:
+
+- OAuth2 Client Credentials Flow
+- JWT validation
+- OpenID Connect metadata
+- Audience validation
+- API Subscription
+- Rate Limiting
+
+                 Microsoft Entra ID
+                         │
+                  OAuth2 / JWT
+                         │
+                         ▼
+              Azure API Management
+          validate-jwt + Rate Limit
+                         │
+                         ▼
+                  NGINX Ingress
+                         │
+                         ▼
+                      AKS Cluster
+                         │
+                         ▼
+                     FastAPI API

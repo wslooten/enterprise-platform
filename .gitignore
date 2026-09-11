@@ -31,3 +31,6 @@ Thumbs.db
 
 # Kubernetes secrets
 secret*.yaml
+
+# Local authentication scripts containing secrets
+get-token.ps1

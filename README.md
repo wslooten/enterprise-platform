@@ -6,14 +6,14 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)
-![OAuth2](https://img.shields.io/badge/OAuth2-In_Progress-orange)
-![JWT](https://img.shields.io/badge/JWT-Planned-lightgrey)
+![OAuth2](https://img.shields.io/badge/OAuth2-Complete-success)
+![JWT](https://img.shields.io/badge/JWT-Complete-success)
 
 ## Overview
 
 This repository documents a hands-on **Enterprise Integration Platform** built on Microsoft Azure.
 
-The project demonstrates how traditional enterprise integration and API gateway concepts can be implemented using modern cloud-native technologies.
+The project demonstrates how traditional enterprise integration, middleware and API gateway concepts can be implemented using modern cloud-native technologies.
 
 The platform combines:
 
@@ -26,79 +26,85 @@ The platform combines:
 - Docker
 - FastAPI
 - OpenAPI
+- OAuth 2.0
+- JWT
 - Git and GitHub
 
-The lab is continuously expanded with API security, automation, Infrastructure as Code, monitoring and CI/CD capabilities.
+The lab is continuously expanded with enterprise security, automation, Infrastructure as Code, monitoring and CI/CD capabilities.
 
 ---
 
 ## Architecture
 
 ```text
-                         API Client
-                             │
-                             │
-                    OAuth2 / JWT Token
-                             │
-                             ▼
-                   Microsoft Entra ID
-                             │
-                             ▼
-                Azure API Management
-                  ├─ Products
-                  ├─ Subscriptions
-                  ├─ Rate Limiting
-                  ├─ API Policies
-                  └─ JWT Validation
-                             │
-                             ▼
-                NGINX Ingress Controller
-                             │
-                             ▼
-                 Kubernetes Service
-                             │
-                   ┌─────────┴─────────┐
-                   ▼                   ▼
-            Orders API Pod       Orders API Pod
-                   │                   │
-                   └─────────┬─────────┘
-                             ▼
-                          FastAPI
+API Client
+    |
+    | OAuth 2.0 Client Credentials
+    v
+Microsoft Entra ID
+    |
+    | JWT Access Token
+    v
+Azure API Management
+    |
+    |-- Products / Subscriptions
+    |-- API Policies
+    |-- JWT Validation
+    |-- App Role Authorization
+    |-- Rate Limiting
+    |
+    v
+NGINX Ingress Controller
+    |
+    v
+Azure Kubernetes Service
+    |
+    v
+Orders API Pods
+    |
+    v
+FastAPI
 ```
 
 Container images are stored in **Azure Container Registry (ACR)** and deployed to **Azure Kubernetes Service (AKS)**.
 
 ---
 
-## Request Flow
+## Request and Security Flow
 
-A typical API request follows this path:
+The Enterprise Orders API is protected using Microsoft Entra ID and Azure API Management.
 
 ```text
-Client
-  │
-  ▼
+API Client
+    |
+    | Client Credentials
+    v
 Microsoft Entra ID
-  │
-  │ OAuth2 / JWT
-  ▼
+    |
+    | JWT
+    v
 Azure API Management
-  │
-  │ API Policies
-  ▼
+    |
+    +-- Missing / invalid JWT ------> 401 Unauthorized
+    |
+    +-- Missing Orders.Read --------> 403 Forbidden
+    |
+    +-- Rate Limit
+    |
+    v
 NGINX Ingress
-  │
-  ▼
-Kubernetes Service
-  │
-  ▼
-Orders API Pods
-  │
-  ▼
-FastAPI
+    |
+    v
+AKS
+    |
+    v
+FastAPI Orders API ---------------> 200 OK
 ```
 
-Azure API Management provides the enterprise API gateway layer, while NGINX Ingress handles HTTP routing inside the Kubernetes environment.
+Authentication and authorization are deliberately separated.
+
+- Authentication verifies that the JWT is valid.
+- Authorization verifies that the calling application has the required `Orders.Read` application role.
 
 ---
 
@@ -126,17 +132,22 @@ Azure API Management provides the enterprise API gateway layer, while NGINX Ingr
 - API Subscriptions
 - Subscription keys
 - Inbound API policies
+- JWT validation
+- Application role authorization
 - Rate limiting
-- HTTP 429 validation using the APIM Test Console
+- HTTP 401 / 403 / 429 handling
 
 ### Microsoft Entra ID
 
 - Orders API App Registration
 - Orders Client App Registration
+- Orders Unauthorized Client for negative testing
 - Application ID URI
-- OAuth2 delegated scope
-- API permissions
+- OAuth 2.0 Client Credentials
+- Application permissions
+- App Role `Orders.Read`
 - Admin consent
+- JWT access token generation
 
 ### DevOps
 
@@ -144,46 +155,85 @@ Azure API Management provides the enterprise API gateway layer, while NGINX Ingr
 - GitHub repository
 - Docker build workflow
 - Kubernetes manifests under version control
+- Security-sensitive local scripts excluded through `.gitignore`
 
 ---
 
-## API Management Policy Example
+## Authentication and Authorization
 
-The following APIM policy limits an API subscription to five requests within a sixty-second window:
+The API uses **OAuth 2.0 Client Credentials** for machine-to-machine authentication.
+
+The authorized client requests an access token from Microsoft Entra ID.
+
+The token contains the application role:
+
+```text
+Orders.Read
+```
+
+Azure API Management validates the JWT and then performs a separate authorization check.
+
+### Security Test Results
+
+All three primary security scenarios have been successfully tested:
+
+| Scenario | Result | Status |
+|---|---|---|
+| Missing or invalid JWT | `401 Unauthorized` | Passed |
+| Valid JWT without `Orders.Read` | `403 Forbidden` | Passed |
+| Valid JWT with `Orders.Read` | `200 OK` | Passed |
+
+This provides a clear separation between authentication and authorization:
+
+```text
+401 = Authentication failure
+403 = Authorization failure
+200 = Authenticated and authorized
+```
+
+---
+
+## APIM Policy Flow
+
+The `Get Orders` operation uses the following inbound policy flow:
+
+```text
+base
+ |
+ v
+validate-jwt
+ |
+ +-- Invalid token --> 401
+ |
+ v
+choose
+ |
+ +-- Missing Orders.Read --> 403
+ |
+ v
+rate-limit
+ |
+ v
+Backend
+```
+
+The `<base />` policy inherits policies configured at the parent API scope.
+
+The `validate-jwt` policy validates the access token.
+
+The `choose` policy performs application-role authorization.
+
+The rate-limit policy limits traffic:
 
 ```xml
 <rate-limit calls="5" renewal-period="60" />
 ```
 
-When the limit is exceeded, APIM returns:
+When the limit is exceeded APIM returns:
 
 ```text
 HTTP 429 Too Many Requests
 ```
-
-This protects backend services from excessive API traffic.
-
----
-
-## Microsoft Entra ID Authentication
-
-The authentication architecture uses two App Registrations.
-
-### Orders API
-
-Represents the protected API and exposes the OAuth2 scope:
-
-```text
-access
-```
-
-### Orders Client
-
-Represents an application that requests access to the Orders API.
-
-The client has delegated permission to the Orders API scope.
-
-The next step is obtaining an access token and configuring APIM to validate the JWT.
 
 ---
 
@@ -193,17 +243,31 @@ One objective of this project is to translate existing enterprise integration ex
 
 | IBM DataPower | Azure API Management |
 |---|---|
-| Multi-Protocol Gateway | API / Gateway |
+| Multi-Protocol Gateway | API Gateway |
 | Processing Policy | APIM Policy Pipeline |
-| AAA Policy | Entra ID + validate-jwt + authorization policies |
+| AAA Policy | Entra ID + JWT + Authorization Policies |
 | Backend URL | Backend Service |
 | URL Rewrite | rewrite-uri |
 | Header Manipulation | set-header |
 | Rate Limiting | rate-limit |
-| TLS / mTLS | APIM Certificates / Client Certificate Validation |
+| TLS / mTLS | APIM Certificate Policies |
 | Monitoring / Logging | Azure Monitor / Application Insights |
 
-The products differ technically, but many underlying integration and security principles remain familiar.
+Although the technologies differ, many enterprise integration and security principles remain comparable.
+
+Conceptually:
+
+```text
+IBM DataPower AAA
+       |
+       +-- Authentication
+       +-- Authorization
+
+Azure API Management
+       |
+       +-- validate-jwt
+       +-- App Role Authorization
+```
 
 ---
 
@@ -211,32 +275,32 @@ The products differ technically, but many underlying integration and security pr
 
 ```text
 enterprise-platform/
-│
-├── api/
-│   ├── app.py
-│   └── requirements.txt
-│
-├── docker/
-│   └── Dockerfile
-│
-├── kubernetes/
-│   └── orders-api.yaml
-│
-├── apim/
-│   ├── policies/
-│   ├── screenshots/
-│   └── README.md
-│
-├── entra-id/
-│   └── README.md
-│
-├── diagrams/
-├── docs/
-├── scripts/
-├── terraform/
-│
-├── .gitignore
-└── README.md
+|
+|-- api/
+|   |-- app.py
+|   `-- requirements.txt
+|
+|-- docker/
+|   `-- Dockerfile
+|
+|-- kubernetes/
+|   `-- orders-api.yaml
+|
+|-- apim/
+|   |-- policies/
+|   |-- screenshots/
+|   `-- README.md
+|
+|-- entra-id/
+|   `-- README.md
+|
+|-- diagrams/
+|-- docs/
+|-- scripts/
+|-- terraform/
+|
+|-- .gitignore
+`-- README.md
 ```
 
 ---
@@ -245,36 +309,38 @@ enterprise-platform/
 
 | Component | Status |
 |---|---|
-| FastAPI | ✅ Complete |
-| Docker | ✅ Complete |
-| Azure Container Registry | ✅ Complete |
-| Kubernetes | ✅ Complete |
-| AKS | ✅ Complete |
-| NGINX Ingress | ✅ Complete |
-| OpenAPI | ✅ Complete |
-| Azure API Management | ✅ Complete |
-| APIM Product | ✅ Complete |
-| APIM Subscription | ✅ Complete |
-| Rate Limiting | ✅ Complete |
-| Microsoft Entra ID API Registration | ✅ Complete |
-| Microsoft Entra ID Client Registration | ✅ Complete |
-| OAuth2 Scope | ✅ Complete |
-| API Permissions | ✅ Complete |
-| Admin Consent | ✅ Complete |
-| Client Secret | 🚧 In Progress |
-| OAuth2 Access Token | ⏳ Planned |
-| JWT Validation in APIM | ⏳ Planned |
-| Terraform | ⏳ Planned |
-| GitHub Actions | ⏳ Planned |
-| Azure Monitor | ⏳ Planned |
-| Application Insights | ⏳ Planned |
-| Azure Key Vault | ⏳ Planned |
+| FastAPI | Complete |
+| Docker | Complete |
+| Azure Container Registry | Complete |
+| Kubernetes | Complete |
+| AKS | Complete |
+| NGINX Ingress | Complete |
+| OpenAPI | Complete |
+| Azure API Management | Complete |
+| APIM Product | Complete |
+| APIM Subscription | Complete |
+| Rate Limiting | Complete |
+| Microsoft Entra ID API Registration | Complete |
+| Microsoft Entra ID Client Registration | Complete |
+| OAuth 2.0 Client Credentials | Complete |
+| OAuth 2.0 Access Token | Complete |
+| JWT Validation in APIM | Complete |
+| App Role `Orders.Read` | Complete |
+| Authentication Test - 401 | Complete |
+| Authorization Test - 403 | Complete |
+| Authorized API Test - 200 | Complete |
+| Enterprise Naming & Tagging | Planned |
+| Terraform | Planned |
+| GitHub Actions | Planned |
+| Azure Monitor | Planned |
+| Application Insights | Planned |
+| Azure Key Vault | Planned |
 
 ---
 
 ## Roadmap
 
-### Phase 1 — Platform Foundation
+### Phase 1 - Platform Foundation
 
 - FastAPI
 - Docker
@@ -283,7 +349,9 @@ enterprise-platform/
 - AKS
 - NGINX Ingress
 
-### Phase 2 — API Management
+**Status: Complete**
+
+### Phase 2 - API Management
 
 - Azure API Management
 - OpenAPI import
@@ -292,16 +360,29 @@ enterprise-platform/
 - Rate limiting
 - API policies
 
-### Phase 3 — Identity and Security
+**Status: Complete**
+
+### Phase 3 - Identity and Security
 
 - Microsoft Entra ID
-- OAuth2
-- Client credentials
+- OAuth 2.0 Client Credentials
 - JWT validation
+- Application roles
 - Claims-based authorization
-- API security policies
+- 401 / 403 / 200 security testing
 
-### Phase 4 — Infrastructure as Code
+**Status: Complete**
+
+### Phase 4 - Enterprise Standards
+
+- Naming conventions
+- Resource tagging
+- Resource organization
+- Environment separation
+
+**Status: Planned**
+
+### Phase 5 - Infrastructure as Code
 
 - Terraform
 - APIM configuration as code
@@ -309,7 +390,9 @@ enterprise-platform/
 - Azure Container Registry configuration
 - Policy deployment
 
-### Phase 5 — CI/CD and GitOps
+**Status: Planned**
+
+### Phase 6 - CI/CD and GitOps
 
 - GitHub Actions
 - Automated Docker builds
@@ -317,7 +400,9 @@ enterprise-platform/
 - Automated AKS deployment
 - ArgoCD / GitOps
 
-### Phase 6 — Observability and Security
+**Status: Planned**
+
+### Phase 7 - Observability and Security
 
 - Azure Monitor
 - Application Insights
@@ -325,6 +410,9 @@ enterprise-platform/
 - Azure Key Vault
 - Managed Identity
 - Secrets management
+- APIM-to-AKS network hardening
+
+**Status: Planned**
 
 ---
 
@@ -334,29 +422,29 @@ This project builds on many years of enterprise integration experience and explo
 
 ```text
 IBM WebSphere
-      │
+     |
 IBM MQ
-      │
+     |
 IBM DataPower
-      │
+     |
 Enterprise API Integration
-      │
-      ▼
+     |
+     v
 Azure API Management
-      │
-      ▼
-Kubernetes / AKS
-      │
-      ▼
+     |
+     v
 Microsoft Entra ID
-      │
-      ▼
-OAuth2 / JWT
-      │
-      ▼
+     |
+     v
+OAuth 2.0 / JWT
+     |
+     v
+Kubernetes / AKS
+     |
+     v
 Infrastructure as Code
-      │
-      ▼
+     |
+     v
 Modern Enterprise Platform Engineering
 ```
 
@@ -372,6 +460,8 @@ The project is intended to demonstrate understanding of:
 - API gateway design
 - API security
 - Authentication and authorization
+- OAuth 2.0 and JWT
+- Microsoft Entra ID application roles
 - Kubernetes networking
 - Container platforms
 - Cloud-native application delivery
@@ -381,13 +471,27 @@ The project is intended to demonstrate understanding of:
 
 ---
 
+## Security
+
+Authentication is implemented using Microsoft Entra ID using the OAuth 2.0 Client Credentials flow.
+
+The Orders API is protected by Azure API Management using JWT validation and application-role authorization.
+
+Client secrets and access tokens are not stored in this repository.
+
+Local PowerShell scripts containing credentials are excluded through `.gitignore`.
+
+For production environments, secrets should be stored in an approved secrets-management solution such as Azure Key Vault or replaced with stronger identity mechanisms where appropriate.
+
+---
+
 ## About
 
 This repository is part of my continuous professional development in modern cloud-native integration platforms.
 
 My background includes **25+ years of Enterprise IT experience**, with expertise in integration, middleware, API management, security and DevOps.
 
-The project combines that experience with modern technologies including Azure API Management, Kubernetes, AKS, Microsoft Entra ID and Infrastructure as Code.
+The project combines that experience with modern technologies including Azure API Management, Kubernetes, AKS and Microsoft Entra ID.
 
 ---
 
@@ -408,53 +512,24 @@ Focus areas:
 - DevOps
 - CI/CD
 - Microsoft Entra ID
-- OAuth2 / JWT
+- OAuth 2.0 / JWT
 - Platform Engineering
 
 ---
 
-## Continuous Development
+## Next Milestone
 
-This platform is actively being developed.
+The next milestone is introducing **enterprise naming conventions and Azure resource tagging**.
 
-The next milestone is:
+After that, the platform will expand into:
 
-> **OAuth2 access token retrieval and JWT validation in Azure API Management.**
-
-After that, the project will expand into Terraform, CI/CD, monitoring, secrets management and GitOps.
+- Terraform
+- CI/CD
+- Azure Key Vault
+- Monitoring and observability
+- Network security
+- GitOps
 
 ---
 
-> **25+ years of enterprise integration experience — continuously evolving toward modern cloud-native platform engineering.**
-
-## Security
-
-Authentication is implemented using Microsoft Entra ID (OAuth2 Client Credentials).
-
-The API is protected by Azure API Management using the `validate-jwt` policy.
-
-Implemented features:
-
-- OAuth2 Client Credentials Flow
-- JWT validation
-- OpenID Connect metadata
-- Audience validation
-- API Subscription
-- Rate Limiting
-
-                 Microsoft Entra ID
-                         │
-                  OAuth2 / JWT
-                         │
-                         ▼
-              Azure API Management
-          validate-jwt + Rate Limit
-                         │
-                         ▼
-                  NGINX Ingress
-                         │
-                         ▼
-                      AKS Cluster
-                         │
-                         ▼
-                     FastAPI API
+> **25+ years of enterprise integration experience - continuously evolving toward modern cloud-native platform engineering.**

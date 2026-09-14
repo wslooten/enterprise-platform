@@ -1,362 +1,329 @@
-\# Azure API Management (APIM)
+# Azure API Management (APIM)
 
-
-
-\## Overview
-
-
+## Overview
 
 Azure API Management (APIM) is the API Gateway used within this Enterprise Integration Platform.
 
+It provides a centralized entry point for API traffic and enables enterprise capabilities such as authentication, authorization, routing, policy enforcement, rate limiting, monitoring and security.
 
+---
 
-It provides a centralized entry point for all API traffic and enables enterprise capabilities such as authentication, authorization, routing, policy enforcement, monitoring and security.
-
-
-
-\---
-
-
-
-\# Objectives
-
-
+## Objectives
 
 This APIM implementation demonstrates:
 
+- API Gateway functionality
+- OpenAPI import
+- Backend integration with AKS
+- API Products
+- API Subscriptions
+- Subscription Keys
+- Rate Limiting
+- OAuth 2.0 Client Credentials
+- Microsoft Entra ID integration
+- JWT Authentication
+- Application Role Authorization
+- API Policies
+- Enterprise API Security
 
+---
 
-\- API Gateway functionality
-
-\- OpenAPI import
-
-\- Backend integration with AKS
-
-\- API Products
-
-\- API Subscriptions
-
-\- Subscription Keys
-
-\- Rate Limiting
-
-\- OAuth2 / JWT Authentication (In Progress)
-
-\- API Policies
-
-\- Enterprise API Security
-
-
-
-\---
-
-
-
-\# Architecture
-
-
+## Architecture
 
 ```text
-
-&#x20;                  API Client
-
-&#x20;                       │
-
-&#x20;                       ▼
-
-&#x20;         Azure API Management
-
-&#x20;            ├── Products
-
-&#x20;            ├── Subscriptions
-
-&#x20;            ├── Policies
-
-&#x20;            ├── Rate Limiting
-
-&#x20;            └── JWT Validation
-
-&#x20;                       │
-
-&#x20;                       ▼
-
-&#x20;            NGINX Ingress Controller
-
-&#x20;                       │
-
-&#x20;                       ▼
-
-&#x20;            Azure Kubernetes Service
-
-&#x20;                       │
-
-&#x20;                       ▼
-
-&#x20;                FastAPI Orders API
-
+API Client
+    |
+    | OAuth 2.0 Client Credentials
+    v
+Microsoft Entra ID
+    |
+    | JWT Access Token
+    v
+Azure API Management
+    |
+    |-- Products / Subscriptions
+    |-- API Policies
+    |-- JWT Validation
+    |-- Application Role Authorization
+    |-- Rate Limiting
+    |
+    v
+NGINX Ingress Controller
+    |
+    v
+Azure Kubernetes Service
+    |
+    v
+FastAPI Orders API
 ```
 
+---
 
+## Implemented Features
 
-\---
+### API Import
 
+- OpenAPI Specification
+- Automatic API creation
+- API Operations
 
+### Backend
 
-\# Implemented Features
+- Azure Kubernetes Service
+- NGINX Ingress
+- FastAPI Orders API
 
-
-
-\## API Import
-
-
-
-\- OpenAPI Specification
-
-\- Automatic API creation
-
-\- API Operations
-
-
-
-\## Backend
-
-
-
-\- Azure Kubernetes Service
-
-\- NGINX Ingress
-
-\- FastAPI backend
-
-
-
-\## Products
-
-
+### Products
 
 Implemented Product:
 
+- Enterprise Platform
 
-
-\- Enterprise Platform
-
-
-
-\## Subscriptions
-
-
+### Subscriptions
 
 Implemented:
 
+- William Test Subscription
 
+Subscription keys can be used as an additional APIM access-control mechanism.
 
-\- William Test Subscription
+---
 
+## Microsoft Entra ID Authentication
 
+The Enterprise Orders API is protected using Microsoft Entra ID and OAuth 2.0 Client Credentials.
 
-Subscription Keys are used to authorize API access.
+The client application requests an access token from Entra ID using:
 
+```text
+grant_type = client_credentials
+scope      = api://<orders-api-application-id>/.default
+```
 
+The returned JWT access token is sent to APIM using:
 
-\---
+```text
+Authorization: Bearer <access-token>
+```
 
+APIM validates the JWT before forwarding the request to the backend.
 
+---
 
-\# Implemented Policies
+## JWT Validation
 
+The `validate-jwt` policy validates the access token.
 
+The policy verifies that the token is valid and intended for the Enterprise Orders API.
 
-\## Rate Limiting
+A validated JWT is made available to subsequent APIM policies:
 
+```xml
+<validate-jwt
+    header-name="Authorization"
+    require-scheme="Bearer"
+    failed-validation-httpcode="401"
+    failed-validation-error-message="Unauthorized. Invalid or missing access token."
+    output-token-variable-name="jwt">
+    ...
+</validate-jwt>
+```
 
+A missing or invalid access token results in:
+
+```text
+HTTP 401 Unauthorized
+```
+
+---
+
+## Application Role Authorization
+
+Authentication and authorization are handled separately.
+
+After JWT validation, APIM checks whether the calling application contains the required Entra ID application role:
+
+```text
+Orders.Read
+```
+
+The role is present in the JWT as a `roles` claim.
+
+APIM uses a `choose` policy to perform this authorization check.
+
+If the JWT is valid but the required role is missing, APIM returns:
+
+```text
+HTTP 403 Forbidden
+```
+
+This provides a clear separation between:
+
+```text
+Authentication failure -> 401 Unauthorized
+Authorization failure  -> 403 Forbidden
+```
+
+---
+
+## Authorization Test Results
+
+Three security scenarios have been successfully tested.
+
+| Scenario | Expected Result | Test Result |
+|---|---|---|
+| Missing or invalid JWT | 401 Unauthorized | Passed |
+| Valid JWT without `Orders.Read` | 403 Forbidden | Passed |
+| Valid JWT with `Orders.Read` | 200 OK | Passed |
+
+The successful authorized request returns:
+
+```json
+{
+  "message": "Enterprise Orders API"
+}
+```
+
+---
+
+## Rate Limiting
 
 The following inbound policy limits API traffic:
 
-
-
 ```xml
-
 <rate-limit calls="5" renewal-period="60" />
-
 ```
-
-
 
 After five requests within sixty seconds APIM returns:
 
-
-
-```
-
+```text
 HTTP 429 Too Many Requests
-
 ```
-
-
 
 This behavior has been successfully tested.
 
+---
 
+## Current Inbound Policy Flow
 
-\---
+The Get Orders operation currently follows this policy flow:
 
+```text
+Request
+   |
+   v
+base
+   |
+   v
+validate-jwt
+   |
+   | invalid/missing JWT
+   +----------------------> 401 Unauthorized
+   |
+   v
+choose
+   |
+   | missing Orders.Read
+   +----------------------> 403 Forbidden
+   |
+   v
+rate-limit
+   |
+   v
+AKS Orders API
+   |
+   v
+200 OK
+```
 
+The `<base />` policy inherits policies configured at the parent API scope.
 
-\# Planned Policies
+---
 
-
-
-\- validate-jwt
-
-\- set-header
-
-\- rewrite-uri
-
-\- set-variable
-
-\- choose
-
-\- cors
-
-\- cache-lookup
-
-\- cache-store
-
-
-
-\---
-
-
-
-\# Authentication
-
-
-
-Current status:
-
-
+## Authentication and Authorization Status
 
 | Feature | Status |
+|---|---|
+| Products | Complete |
+| Subscriptions | Complete |
+| Subscription Keys | Complete |
+| Rate Limiting | Complete |
+| Microsoft Entra ID | Complete |
+| OAuth 2.0 Client Credentials | Complete |
+| JWT Validation | Complete |
+| Application Role `Orders.Read` | Complete |
+| 401 Authentication Test | Complete |
+| 403 Authorization Test | Complete |
+| 200 Authorized Request Test | Complete |
 
-|----------|--------|
+---
 
-| Products | ✅ |
+## Security
 
-| Subscriptions | ✅ |
+Client secrets and access tokens are not stored in this repository.
 
-| Subscription Keys | ✅ |
+Local PowerShell token-generation scripts containing credentials are excluded through `.gitignore`.
 
-| Rate Limiting | ✅ |
+In a production environment, secrets should be stored using an approved secrets-management solution such as Azure Key Vault or replaced by stronger identity mechanisms where appropriate.
 
-| Microsoft Entra ID | 🚧 |
+---
 
-| OAuth2 | 🚧 |
+## IBM DataPower Comparison
 
-| JWT Validation | ⏳ |
+| IBM DataPower | Azure API Management |
+|---|---|
+| Multi Protocol Gateway | API Gateway |
+| Processing Policy | APIM Policy |
+| AAA Policy | JWT Authentication / Authorization Policies |
+| Header Rewrite | set-header |
+| URL Rewrite | rewrite-uri |
+| Rate Limit | rate-limit |
+| Backend URL | Backend Service |
 
+Although the implementation differs, many enterprise integration and API security concepts remain comparable.
 
+For example:
 
-\---
+```text
+DataPower AAA
+     |
+     +-- Authentication
+     +-- Authorization
 
-
-
-\# Repository Structure
-
-
-
+APIM
+     |
+     +-- validate-jwt
+     +-- App Role Authorization
 ```
 
-apim/
+---
 
-
-
-├── README.md
-
-├── policies/
-
-└── screenshots/
-
-```
-
-
-
-\---
-
-
-
-\# Learning Goals
-
-
+## Learning Goals
 
 This part of the project demonstrates how Azure API Management can replace or complement traditional enterprise API gateways.
 
-
-
 Topics include:
 
+- API Gateway Design
+- Enterprise API Security
+- OAuth 2.0
+- JWT
+- Authentication vs Authorization
+- Microsoft Entra ID App Roles
+- Policy Management
+- Rate Limiting
+- Backend Routing
+- Cloud-native API Management
 
+---
 
-\- API Gateway Design
+## Next Steps
 
-\- Enterprise API Security
+Planned enterprise platform improvements include:
 
-\- Policy Management
-
-\- OAuth2
-
-\- JWT
-
-\- Backend Routing
-
-\- Cloud-native API Management
-
-
-
-\---
-
-
-
-\# IBM DataPower Comparison
-
-
-
-| IBM DataPower | Azure API Management |
-
-|---------------|----------------------|
-
-| Multi Protocol Gateway | API Gateway |
-
-| Processing Policy | APIM Policy |
-
-| AAA Policy | validate-jwt |
-
-| Header Rewrite | set-header |
-
-| URL Rewrite | rewrite-uri |
-
-| Rate Limit | rate-limit |
-
-| Backend URL | Backend Service |
-
-
-
-Although the implementation differs, many enterprise integration concepts remain the same.
-
-
-
-\---
-
-
-
-\# Next Steps
-
-
-
-\- Configure Microsoft Entra ID Authentication
-
-\- Obtain OAuth2 Access Token
-
-\- Implement validate-jwt Policy
-
-\- Protect the Orders API using JWT Authentication
-
+- Enterprise naming conventions
+- Azure resource tagging
+- Infrastructure as Code
+- Azure Key Vault integration
+- Monitoring and observability
+- Network security and APIM-to-AKS hardening

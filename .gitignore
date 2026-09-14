@@ -34,3 +34,4 @@ secret*.yaml
 
 # Local authentication scripts containing secrets
 get-token.ps1
+get-token-unauthorized.ps1

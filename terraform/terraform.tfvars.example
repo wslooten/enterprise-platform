@@ -1,1 +1,4 @@
 environment = "dev"
+application = "orders"
+location    = "Sweden Central"
+region_code = "swc"

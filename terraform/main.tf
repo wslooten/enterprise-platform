@@ -1,10 +1,10 @@
 resource "azurerm_resource_group" "orders" {
-  name     = "rg-orders-dev-swc-001"
-  location = "Sweden Central"
+  name     = "rg-${var.application}-${var.environment}-${var.region_code}-001"
+  location = var.location
 
   tags = {
     Environment = var.environment
-    Application = "orders"
+    Application = var.application
     Project     = "enterprise-platform"
     Owner       = "william"
     ManagedBy   = "terraform"

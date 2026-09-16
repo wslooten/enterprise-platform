@@ -35,3 +35,6 @@ secret*.yaml
 # Local authentication scripts containing secrets
 get-token.ps1
 get-token-unauthorized.ps1
+# Terraform variable values
+*.tfvars
+!*.tfvars.example

@@ -3,7 +3,7 @@ resource "azurerm_resource_group" "orders" {
   location = "Sweden Central"
 
   tags = {
-    Environment = "dev"
+    Environment = var.environment
     Application = "orders"
     Project     = "enterprise-platform"
     Owner       = "william"

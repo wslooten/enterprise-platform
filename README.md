@@ -329,13 +329,24 @@ enterprise-platform/
 | Authentication Test - 401 | Complete |
 | Authorization Test - 403 | Complete |
 | Authorized API Test - 200 | Complete |
-| Enterprise Naming & Tagging | Planned |
-| Terraform | Planned |
+| Enterprise Naming & Tagging | Complete |
+| Terraform Fundamentals | Complete |
+| Terraform Variables / Locals / Outputs | Complete |
+| Terraform Remote State | Complete |
+| Terraform State Locking | Complete |
+| Terraform Drift Management | Complete |
+| Terraform Provider Versioning | Complete |
+| Terraform-managed Resource Group | Complete |
+| Terraform-managed ACR | Complete |
+| AKS Managed Identity → ACR | Complete |
+| Azure RBAC `AcrPull` | Complete |
+| Terraform Import | Complete |
+| Azure Key Vault Deployment | Complete |
+| Key Vault Secrets Management | In Progress |
+| Managed Identity → Key Vault | Planned |
 | GitHub Actions | Planned |
 | Azure Monitor | Planned |
 | Application Insights | Planned |
-| Azure Key Vault | Planned |
-
 ---
 
 ## Roadmap
@@ -380,17 +391,26 @@ enterprise-platform/
 - Resource organization
 - Environment separation
 
-**Status: Planned**
+**Status: Complete**
 
 ### Phase 5 - Infrastructure as Code
 
-- Terraform
-- APIM configuration as code
-- AKS configuration as code
-- Azure Container Registry configuration
-- Policy deployment
+- Terraform fundamentals
+- AzureRM provider versioning
+- Variables, locals and outputs
+- Remote state in Azure Storage
+- Microsoft Entra ID authentication for remote state
+- Terraform state locking
+- Drift detection and remediation
+- Terraform-managed Resource Group
+- Terraform-managed Azure Container Registry
+- Terraform-managed Azure Key Vault
+- Azure RBAC with Terraform
+- Importing existing Azure resources into Terraform state
+- APIM configuration as code (planned)
+- AKS configuration as code (planned)
 
-**Status: Planned**
+**Status: In Progress**
 
 ### Phase 6 - CI/CD and GitOps
 
@@ -404,15 +424,16 @@ enterprise-platform/
 
 ### Phase 7 - Observability and Security
 
-- Azure Monitor
-- Application Insights
-- Centralized logging
-- Azure Key Vault
-- Managed Identity
-- Secrets management
-- APIM-to-AKS network hardening
+- Azure Key Vault deployment - Complete
+- Key Vault RBAC authorization - Complete
+- Managed Identity integration - In Progress
+- Secrets management - In Progress
+- Azure Monitor - Planned
+- Application Insights - Planned
+- Centralized logging - Planned
+- APIM-to-AKS network hardening - Planned
 
-**Status: Planned**
+**Status: In Progress**
 
 ---
 
@@ -519,16 +540,20 @@ Focus areas:
 
 ## Next Milestone
 
-The next milestone is introducing **enterprise naming conventions and Azure resource tagging**.
+The next milestone is completing **Azure Key Vault and Managed Identity integration**.
 
-After that, the platform will expand into:
+The platform already includes a Terraform-managed Azure Key Vault with RBAC authorization enabled.
 
-- Terraform
-- CI/CD
-- Azure Key Vault
-- Monitoring and observability
-- Network security
-- GitOps
+The next steps are:
+
+- Store and retrieve secrets securely using Azure Key Vault
+- Configure Managed Identity access to Key Vault
+- Apply least-privilege Azure RBAC
+- Introduce Azure Monitor and Application Insights
+- Build CI/CD pipelines with GitHub Actions
+- Automate container build and deployment workflows
+- Continue APIM and AKS Infrastructure as Code
+- Harden APIM-to-AKS network access
 
 ---
 

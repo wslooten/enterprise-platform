@@ -8,6 +8,8 @@ locals {
   }
 }
 
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "orders" {
   name     = "rg-${var.application}-${var.environment}-${var.region_code}-001"
   location = var.location
@@ -29,4 +31,16 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
   scope                = azurerm_container_registry.orders.id
   role_definition_name = "AcrPull"
   principal_id         = "957ab5ee-360c-4f4a-9e49-31a1d02cc29b"
+}
+
+resource "azurerm_key_vault" "orders" {
+  name                = "kv-orders-dev-swc-001"
+  location            = azurerm_resource_group.orders.location
+  resource_group_name = azurerm_resource_group.orders.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  sku_name            = "standard"
+
+  rbac_authorization_enabled = true
+
+  tags = local.common_tags
 }

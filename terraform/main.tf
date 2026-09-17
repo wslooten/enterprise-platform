@@ -24,3 +24,9 @@ resource "azurerm_container_registry" "orders" {
 
   tags = local.common_tags
 }
+
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  scope                = azurerm_container_registry.orders.id
+  role_definition_name = "AcrPull"
+  principal_id         = "957ab5ee-360c-4f4a-9e49-31a1d02cc29b"
+}

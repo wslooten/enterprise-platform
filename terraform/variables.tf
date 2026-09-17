@@ -17,3 +17,9 @@ variable "region_code" {
   description = "Short code for the Azure region"
   type        = string
 }
+
+variable "project" {
+  description = "Project name"
+  type        = string
+}
+

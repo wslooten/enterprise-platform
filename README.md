@@ -5,9 +5,14 @@
 ![AKS](https://img.shields.io/badge/AKS-Kubernetes-326CE5?logo=kubernetes&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform&logoColor=white)
 ![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)
 ![OAuth2](https://img.shields.io/badge/OAuth2-Complete-success)
 ![JWT](https://img.shields.io/badge/JWT-Complete-success)
+![Workload Identity](https://img.shields.io/badge/Workload_Identity-Complete-success)
+![Key Vault](https://img.shields.io/badge/Key_Vault-Complete-success)
+
+---
 
 ## Overview
 
@@ -20,7 +25,12 @@ The platform combines:
 - Azure API Management (APIM)
 - Azure Kubernetes Service (AKS)
 - Azure Container Registry (ACR)
+- Azure Key Vault
 - Microsoft Entra ID
+- AKS Workload Identity
+- OpenID Connect (OIDC) federation
+- User Assigned Managed Identity
+- Azure RBAC
 - NGINX Ingress Controller
 - Kubernetes
 - Docker
@@ -28,9 +38,10 @@ The platform combines:
 - OpenAPI
 - OAuth 2.0
 - JWT
+- Terraform
 - Git and GitHub
 
-The lab is continuously expanded with enterprise security, automation, Infrastructure as Code, monitoring and CI/CD capabilities.
+The lab is continuously expanded with enterprise security, automation, Infrastructure as Code, monitoring, observability and CI/CD capabilities.
 
 ---
 
@@ -62,11 +73,78 @@ Azure Kubernetes Service
     v
 Orders API Pods
     |
+    | Kubernetes ServiceAccount
+    | orders-api-sa
     v
-FastAPI
+AKS Workload Identity / OIDC
+    |
+    v
+Federated Identity Credential
+    |
+    v
+User Assigned Managed Identity
+    |
+    | Key Vault Secrets User
+    v
+Azure Key Vault
 ```
 
 Container images are stored in **Azure Container Registry (ACR)** and deployed to **Azure Kubernetes Service (AKS)**.
+
+The Orders API uses **AKS Workload Identity** to access Azure Key Vault without storing Azure credentials in the Kubernetes workload.
+
+A Kubernetes ServiceAccount is federated through the AKS OIDC issuer with a User Assigned Managed Identity. Azure RBAC grants this identity the `Key Vault Secrets User` role using least-privilege access.
+
+---
+
+## Security Architecture
+
+The platform implements security at two different layers.
+
+### Inbound API Security
+
+```text
+API Client
+    |
+    | OAuth 2.0 Client Credentials
+    v
+Microsoft Entra ID
+    |
+    | JWT
+    v
+Azure API Management
+    |
+    | Authentication
+    | Authorization
+    | Rate Limiting
+    v
+Orders API
+```
+
+### Outbound Workload Security
+
+```text
+Orders API Pod
+    |
+    v
+Kubernetes ServiceAccount
+orders-api-sa
+    |
+    v
+AKS OIDC
+    |
+    v
+Federated Identity Credential
+    |
+    v
+User Assigned Managed Identity
+    |
+    | Azure RBAC
+    v
+Azure Key Vault
+```
+
+This avoids storing Azure client secrets inside the Kubernetes workload.
 
 ---
 
@@ -89,7 +167,7 @@ Azure API Management
     |
     +-- Missing Orders.Read --------> 403 Forbidden
     |
-    +-- Rate Limit
+    +-- Rate Limit -----------------> 429 Too Many Requests
     |
     v
 NGINX Ingress
@@ -141,7 +219,7 @@ Authentication and authorization are deliberately separated.
 
 - Orders API App Registration
 - Orders Client App Registration
-- Orders Unauthorized Client for negative testing
+- Unauthorized client for negative testing
 - Application ID URI
 - OAuth 2.0 Client Credentials
 - Application permissions
@@ -149,13 +227,51 @@ Authentication and authorization are deliberately separated.
 - Admin consent
 - JWT access token generation
 
+### Workload Identity and Key Vault
+
+- Azure Key Vault with RBAC authorization
+- AKS OIDC issuer enabled
+- AKS Workload Identity enabled
+- Kubernetes ServiceAccount `orders-api-sa`
+- User Assigned Managed Identity `id-orders-api-dev-swc-001`
+- Federated Identity Credential `fic-orders-api`
+- Azure RBAC role `Key Vault Secrets User`
+- Passwordless authentication using `DefaultAzureCredential`
+- Azure Key Vault SDK integration in the Orders API
+- End-to-end AKS Pod to Key Vault access successfully tested
+- No Azure client secrets stored in the Kubernetes workload
+- Workload Identity Azure resources managed through Terraform
+
+### Infrastructure as Code
+
+- Terraform AzureRM provider
+- Terraform provider version locking
+- Terraform variables
+- Terraform locals
+- Terraform outputs
+- Azure Storage remote state
+- Microsoft Entra ID authentication for Terraform backend
+- Terraform state locking
+- Drift detection
+- Resource import
+- Azure RBAC management
+- Terraform-managed Resource Group
+- Terraform-managed Azure Container Registry
+- Terraform-managed Azure Key Vault
+- Terraform-managed User Assigned Managed Identity
+- Terraform-managed Key Vault RBAC assignment
+- Terraform-managed Federated Identity Credential
+
 ### DevOps
 
 - Git source control
 - GitHub repository
 - Docker build workflow
 - Kubernetes manifests under version control
+- Terraform configuration under version control
 - Security-sensitive local scripts excluded through `.gitignore`
+- Terraform state excluded from Git
+- Local `.tfvars` excluded from Git
 
 ---
 
@@ -213,6 +329,8 @@ choose
  v
 rate-limit
  |
+ +-- Limit exceeded --> 429
+ |
  v
 Backend
 ```
@@ -237,6 +355,213 @@ HTTP 429 Too Many Requests
 
 ---
 
+## AKS Workload Identity
+
+The Orders API accesses Azure Key Vault using **AKS Workload Identity**.
+
+The Kubernetes Deployment uses the ServiceAccount:
+
+```text
+orders-api-sa
+```
+
+The ServiceAccount references the User Assigned Managed Identity through its Azure client ID.
+
+The trust relationship is implemented through an Azure Federated Identity Credential.
+
+Conceptually:
+
+```text
+Orders API Pod
+       |
+       v
+orders-api-sa
+       |
+       v
+AKS OIDC issuer
+       |
+       v
+Federated Identity Credential
+       |
+       v
+id-orders-api-dev-swc-001
+       |
+       v
+Azure RBAC
+       |
+       v
+Key Vault Secrets User
+       |
+       v
+Azure Key Vault
+```
+
+The application uses:
+
+```python
+DefaultAzureCredential()
+```
+
+together with the Azure Key Vault SDK.
+
+This allows the application to obtain an Azure identity without storing a client secret inside the container.
+
+---
+
+## Key Vault Integration
+
+The Orders API contains a Key Vault integration endpoint used to validate the workload identity flow.
+
+The application retrieves a test secret using the Azure Key Vault SDK.
+
+The successful end-to-end flow proves that:
+
+```text
+Pod
+ |
+ v
+Workload Identity
+ |
+ v
+Microsoft Entra ID
+ |
+ v
+Managed Identity
+ |
+ v
+Azure RBAC
+ |
+ v
+Azure Key Vault
+ |
+ v
+Secret metadata returned to application
+```
+
+The application does not expose the secret value through the test endpoint.
+
+---
+
+## Azure RBAC
+
+Azure RBAC is used throughout the platform.
+
+### AKS to ACR
+
+The AKS kubelet identity receives:
+
+```text
+AcrPull
+```
+
+This allows AKS to pull container images from Azure Container Registry without enabling the ACR admin account.
+
+### Orders API to Key Vault
+
+The Orders API User Assigned Managed Identity receives:
+
+```text
+Key Vault Secrets User
+```
+
+The scope is limited to the Orders Key Vault.
+
+This implements least-privilege access.
+
+---
+
+## Terraform
+
+Terraform is used to manage an increasing portion of the Azure platform.
+
+### Terraform Workflow
+
+```text
+HCL Configuration
+       |
+       v
+terraform fmt
+       |
+       v
+terraform validate
+       |
+       v
+terraform plan
+       |
+       v
+Review Changes
+       |
+       v
+terraform apply
+       |
+       v
+Azure
+```
+
+### Terraform State Model
+
+```text
+Terraform Configuration
+        |
+        | desired configuration
+        v
+Terraform State
+        |
+        | maps Terraform resources
+        v
+Azure Resources
+```
+
+Terraform state is stored remotely in Azure Storage.
+
+The backend uses Microsoft Entra ID authentication instead of Storage Account access keys.
+
+### Terraform Import
+
+Existing Azure resources were brought under Terraform management using `terraform import`.
+
+The process used throughout the project is:
+
+```text
+Existing Azure Resource
+        |
+        v
+Write Terraform Resource
+        |
+        v
+terraform import
+        |
+        v
+terraform plan
+        |
+        v
+Review Drift
+        |
+        v
+terraform apply (only when required)
+        |
+        v
+terraform plan
+        |
+        v
+No changes
+```
+
+Imported resources include:
+
+- Existing Azure RBAC assignments
+- User Assigned Managed Identity
+- Key Vault `Secrets User` role assignment
+- Federated Identity Credential
+
+The final validation returned:
+
+```text
+No changes. Your infrastructure matches the configuration.
+```
+
+---
+
 ## DataPower to Azure APIM
 
 One objective of this project is to translate existing enterprise integration experience into modern Azure API Management concepts.
@@ -247,9 +572,9 @@ One objective of this project is to translate existing enterprise integration ex
 | Processing Policy | APIM Policy Pipeline |
 | AAA Policy | Entra ID + JWT + Authorization Policies |
 | Backend URL | Backend Service |
-| URL Rewrite | rewrite-uri |
-| Header Manipulation | set-header |
-| Rate Limiting | rate-limit |
+| URL Rewrite | `rewrite-uri` |
+| Header Manipulation | `set-header` |
+| Rate Limiting | `rate-limit` |
 | TLS / mTLS | APIM Certificate Policies |
 | Monitoring / Logging | Azure Monitor / Application Insights |
 
@@ -284,7 +609,8 @@ enterprise-platform/
 |   `-- Dockerfile
 |
 |-- kubernetes/
-|   `-- orders-api.yaml
+|   |-- orders-api.yaml
+|   `-- orders-api-serviceaccount.yaml
 |
 |-- apim/
 |   |-- policies/
@@ -295,9 +621,18 @@ enterprise-platform/
 |   `-- README.md
 |
 |-- diagrams/
+|
 |-- docs/
+|   `-- naming-and-tagging.md
+|
 |-- scripts/
+|
 |-- terraform/
+|   |-- main.tf
+|   |-- providers.tf
+|   |-- variables.tf
+|   |-- outputs.tf
+|   `-- terraform.tfvars.example
 |
 |-- .gitignore
 `-- README.md
@@ -342,11 +677,23 @@ enterprise-platform/
 | Azure RBAC `AcrPull` | Complete |
 | Terraform Import | Complete |
 | Azure Key Vault Deployment | Complete |
-| Key Vault Secrets Management | In Progress |
-| Managed Identity → Key Vault | Planned |
-| GitHub Actions | Planned |
+| Key Vault Secrets Management | Complete |
+| AKS OIDC Issuer | Complete |
+| AKS Workload Identity | Complete |
+| Kubernetes ServiceAccount | Complete |
+| User Assigned Managed Identity | Complete |
+| Federated Identity Credential | Complete |
+| Managed Identity → Key Vault | Complete |
+| Key Vault `Secrets User` RBAC | Complete |
+| `DefaultAzureCredential` Integration | Complete |
+| Orders API → Key Vault Test | Complete |
+| Workload Identity Terraform Import | Complete |
 | Azure Monitor | Planned |
 | Application Insights | Planned |
+| Centralized Logging | Planned |
+| GitHub Actions | Planned |
+| APIM-to-AKS Network Hardening | Planned |
+
 ---
 
 ## Roadmap
@@ -373,7 +720,7 @@ enterprise-platform/
 
 **Status: Complete**
 
-### Phase 3 - Identity and Security
+### Phase 3 - Identity and API Security
 
 - Microsoft Entra ID
 - OAuth 2.0 Client Credentials
@@ -407,12 +754,42 @@ enterprise-platform/
 - Terraform-managed Azure Key Vault
 - Azure RBAC with Terraform
 - Importing existing Azure resources into Terraform state
-- APIM configuration as code (planned)
-- AKS configuration as code (planned)
+- User Assigned Managed Identity with Terraform
+- Key Vault RBAC with Terraform
+- Federated Identity Credential with Terraform
+- APIM configuration as code - Planned
+- AKS configuration as code - Planned
 
 **Status: In Progress**
 
-### Phase 6 - CI/CD and GitOps
+### Phase 6 - Workload Identity and Secrets
+
+- Azure Key Vault
+- Key Vault RBAC authorization
+- AKS OIDC issuer
+- AKS Workload Identity
+- Kubernetes ServiceAccount
+- User Assigned Managed Identity
+- Federated Identity Credential
+- Passwordless authentication
+- `DefaultAzureCredential`
+- Azure Key Vault SDK
+- End-to-end workload identity validation
+
+**Status: Complete**
+
+### Phase 7 - Observability and Operations
+
+- Azure Monitor
+- Application Insights
+- AKS workload monitoring
+- Application health monitoring
+- Centralized logging
+- Operational troubleshooting
+
+**Status: Planned**
+
+### Phase 8 - CI/CD and GitOps
 
 - GitHub Actions
 - Automated Docker builds
@@ -422,18 +799,14 @@ enterprise-platform/
 
 **Status: Planned**
 
-### Phase 7 - Observability and Security
+### Phase 9 - Network Hardening
 
-- Azure Key Vault deployment - Complete
-- Key Vault RBAC authorization - Complete
-- Managed Identity integration - In Progress
-- Secrets management - In Progress
-- Azure Monitor - Planned
-- Application Insights - Planned
-- Centralized logging - Planned
-- APIM-to-AKS network hardening - Planned
+- Restrict direct public backend access
+- Harden APIM-to-AKS communication
+- Review private networking options
+- Review ACR network exposure
 
-**Status: In Progress**
+**Status: Planned**
 
 ---
 
@@ -463,6 +836,9 @@ OAuth 2.0 / JWT
 Kubernetes / AKS
      |
      v
+Workload Identity / Key Vault
+     |
+     v
 Infrastructure as Code
      |
      v
@@ -475,7 +851,7 @@ Modern Enterprise Platform Engineering
 
 The goal is not only to deploy a working API.
 
-The project is intended to demonstrate understanding of:
+The project is intended to demonstrate practical understanding of:
 
 - Enterprise integration architecture
 - API gateway design
@@ -485,24 +861,53 @@ The project is intended to demonstrate understanding of:
 - Microsoft Entra ID application roles
 - Kubernetes networking
 - Container platforms
+- Azure identity
+- Workload Identity
+- OIDC federation
+- Azure RBAC
+- Secrets management
+- Infrastructure as Code
+- Terraform state management
 - Cloud-native application delivery
 - DevOps
-- Infrastructure as Code
 - Monitoring and observability
 
 ---
 
 ## Security
 
-Authentication is implemented using Microsoft Entra ID using the OAuth 2.0 Client Credentials flow.
+Authentication is implemented using Microsoft Entra ID and the OAuth 2.0 Client Credentials flow.
 
 The Orders API is protected by Azure API Management using JWT validation and application-role authorization.
 
-Client secrets and access tokens are not stored in this repository.
+For Azure resource access, the Orders API uses AKS Workload Identity instead of stored Azure client credentials.
 
-Local PowerShell scripts containing credentials are excluded through `.gitignore`.
+The application authenticates using `DefaultAzureCredential`, a Kubernetes ServiceAccount, OIDC federation and a User Assigned Managed Identity.
 
-For production environments, secrets should be stored in an approved secrets-management solution such as Azure Key Vault or replaced with stronger identity mechanisms where appropriate.
+Azure RBAC grants the workload only the permissions required to access Key Vault secrets.
+
+Client secrets, access tokens, Terraform state and local credential files are not stored in this repository.
+
+Security-sensitive local PowerShell scripts and local Terraform variable files are excluded through `.gitignore`.
+
+---
+
+## Next Milestone
+
+The next milestone is implementing **monitoring, observability and operational visibility** across the platform.
+
+The platform now includes end-to-end API security, AKS Workload Identity, passwordless Key Vault access and Terraform-managed identity resources.
+
+The next steps are:
+
+- Introduce Azure Monitor
+- Introduce Application Insights
+- Implement centralized logging
+- Monitor AKS workloads and application health
+- Build CI/CD pipelines with GitHub Actions
+- Automate container build and deployment workflows
+- Continue APIM and AKS Infrastructure as Code
+- Harden APIM-to-AKS network access
 
 ---
 
@@ -512,7 +917,7 @@ This repository is part of my continuous professional development in modern clou
 
 My background includes **25+ years of Enterprise IT experience**, with expertise in integration, middleware, API management, security and DevOps.
 
-The project combines that experience with modern technologies including Azure API Management, Kubernetes, AKS and Microsoft Entra ID.
+The project combines that experience with modern technologies including Azure API Management, Kubernetes, AKS, Microsoft Entra ID, Terraform and Azure Workload Identity.
 
 ---
 
@@ -534,26 +939,9 @@ Focus areas:
 - CI/CD
 - Microsoft Entra ID
 - OAuth 2.0 / JWT
+- Terraform
+- Azure Workload Identity
 - Platform Engineering
-
----
-
-## Next Milestone
-
-The next milestone is completing **Azure Key Vault and Managed Identity integration**.
-
-The platform already includes a Terraform-managed Azure Key Vault with RBAC authorization enabled.
-
-The next steps are:
-
-- Store and retrieve secrets securely using Azure Key Vault
-- Configure Managed Identity access to Key Vault
-- Apply least-privilege Azure RBAC
-- Introduce Azure Monitor and Application Insights
-- Build CI/CD pipelines with GitHub Actions
-- Automate container build and deployment workflows
-- Continue APIM and AKS Infrastructure as Code
-- Harden APIM-to-AKS network access
 
 ---
 

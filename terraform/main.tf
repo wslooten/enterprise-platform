@@ -44,3 +44,28 @@ resource "azurerm_key_vault" "orders" {
 
   tags = local.common_tags
 }
+
+resource "azurerm_user_assigned_identity" "orders_api" {
+  name                = "id-orders-api-dev-swc-001"
+  resource_group_name = azurerm_resource_group.orders.name
+  location            = azurerm_resource_group.orders.location
+
+  tags = local.common_tags
+}
+resource "azurerm_role_assignment" "orders_api_keyvault_secrets_user" {
+  scope                = azurerm_key_vault.orders.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.orders_api.principal_id
+}
+
+resource "azurerm_federated_identity_credential" "orders_api" {
+  name                      = "fic-orders-api"
+  user_assigned_identity_id = azurerm_user_assigned_identity.orders_api.id
+
+  audience = [
+    "api://AzureADTokenExchange"
+  ]
+
+  issuer  = "https://swedencentral.oic.prod-aks.azure.com/d9b5111a-9ba2-417d-bede-5edee1c90dcf/b70796e1-fb8f-43ee-9d3e-8c093b1984e5/"
+  subject = "system:serviceaccount:default:orders-api-sa"
+}

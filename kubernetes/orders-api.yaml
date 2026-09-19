@@ -11,10 +11,12 @@ spec:
     metadata:
       labels:
         app: orders-api
+        azure.workload.identity/use: "true"
     spec:
+      serviceAccountName: orders-api-sa
       containers:
         - name: orders-api
-          image: wslootenacr2026.azurecr.io/enterprise-orders-api:v1
+          image: acrordersdev001.azurecr.io/enterprise-orders-api:v3
           ports:
             - containerPort: 8000
 

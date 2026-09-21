@@ -562,6 +562,33 @@ No changes. Your infrastructure matches the configuration.
 
 ---
 
+## Observability and Monitoring
+
+The platform implements centralized logging and metrics monitoring for the AKS workload using Azure Monitor.
+
+### Logging
+
+AKS Container Insights collects container logs and sends them to a Log Analytics Workspace.
+
+```text
+Orders API Pod
+      |
+      | stdout / stderr
+      v
+Azure Monitor Agent
+      |
+      v
+Container Insights
+      |
+      v
+Log Analytics Workspace
+      |
+      v
+ContainerLogV2
+      |
+      v
+KQL
+
 ## DataPower to Azure APIM
 
 One objective of this project is to translate existing enterprise integration experience into modern Azure API Management concepts.
@@ -688,9 +715,18 @@ enterprise-platform/
 | `DefaultAzureCredential` Integration | Complete |
 | Orders API → Key Vault Test | Complete |
 | Workload Identity Terraform Import | Complete |
-| Azure Monitor | Planned |
+| Azure Monitor | Complete |
+| AKS Container Insights | Complete |
+| Log Analytics Workspace | Complete |
+| Centralized Logging | Complete |
+| KQL Log Analysis | Complete |
+| Azure Monitor Managed Prometheus | Complete |
+| Azure Monitor Workspace | Complete |
+| PromQL Metrics Analysis | Complete |
+| Prometheus Alert Rule | Complete |
+| Alert Fired Test | Complete |
+| Alert Resolved Test | Complete |
 | Application Insights | Planned |
-| Centralized Logging | Planned |
 | GitHub Actions | Planned |
 | APIM-to-AKS Network Hardening | Planned |
 
@@ -781,13 +817,23 @@ enterprise-platform/
 ### Phase 7 - Observability and Operations
 
 - Azure Monitor
-- Application Insights
-- AKS workload monitoring
-- Application health monitoring
-- Centralized logging
+- AKS Container Insights
+- Log Analytics Workspace
+- Centralized container logging
+- KQL log analysis
+- Azure Monitor Managed Prometheus
+- Azure Monitor Workspace
+- PromQL metrics analysis
+- AKS node and workload metrics
+- Orders API CPU and memory monitoring
+- Deployment replica availability monitoring
+- Terraform-managed Prometheus alert rule
+- `OrdersApiReplicasUnavailable` availability alert
+- Azure Monitor alert lifecycle testing
 - Operational troubleshooting
+- Application Insights - Planned future extension
 
-**Status: Planned**
+**Status: Complete**
 
 ### Phase 8 - CI/CD and GitOps
 
@@ -894,18 +940,29 @@ Security-sensitive local PowerShell scripts and local Terraform variable files a
 
 ## Next Milestone
 
-The next milestone is implementing **monitoring, observability and operational visibility** across the platform.
+The next milestone is **Phase 8 - CI/CD and GitOps**.
 
-The platform now includes end-to-end API security, AKS Workload Identity, passwordless Key Vault access and Terraform-managed identity resources.
+The platform now includes:
+
+- End-to-end API security
+- OAuth 2.0 and JWT authorization
+- AKS Workload Identity
+- Passwordless Key Vault access
+- Terraform-managed Azure infrastructure
+- Centralized AKS logging
+- KQL-based log analysis
+- Azure Monitor Managed Prometheus
+- PromQL-based metrics monitoring
+- Azure Monitor alerting
 
 The next steps are:
 
-- Introduce Azure Monitor
-- Introduce Application Insights
-- Implement centralized logging
-- Monitor AKS workloads and application health
-- Build CI/CD pipelines with GitHub Actions
-- Automate container build and deployment workflows
+- Introduce GitHub Actions
+- Automate Docker image builds
+- Authenticate GitHub workflows securely with Azure
+- Push application images automatically to Azure Container Registry
+- Automate AKS application deployment
+- Evaluate GitOps deployment using ArgoCD
 - Continue APIM and AKS Infrastructure as Code
 - Harden APIM-to-AKS network access
 

@@ -69,3 +69,60 @@ resource "azurerm_federated_identity_credential" "orders_api" {
   issuer  = "https://swedencentral.oic.prod-aks.azure.com/d9b5111a-9ba2-417d-bede-5edee1c90dcf/b70796e1-fb8f-43ee-9d3e-8c093b1984e5/"
   subject = "system:serviceaccount:default:orders-api-sa"
 }
+
+resource "azurerm_log_analytics_workspace" "orders" {
+  name                = "log-orders-dev-swc-001"
+  location            = azurerm_resource_group.orders.location
+  resource_group_name = azurerm_resource_group.orders.name
+
+  sku               = "PerGB2018"
+  retention_in_days = 30
+
+  tags = local.common_tags
+}
+
+resource "azurerm_monitor_workspace" "orders" {
+  name                = "amw-orders-dev-swc-001"
+  resource_group_name = azurerm_resource_group.orders.name
+  location            = azurerm_resource_group.orders.location
+
+  tags = local.common_tags
+}
+
+resource "azurerm_monitor_alert_prometheus_rule_group" "orders" {
+  name                = "prom-orders-api-alerts"
+  location            = azurerm_resource_group.orders.location
+  resource_group_name = azurerm_resource_group.orders.name
+
+  scopes = [
+    azurerm_monitor_workspace.orders.id
+  ]
+
+  cluster_name       = "aks-bootcamp"
+  interval           = "PT1M"
+  rule_group_enabled = true
+
+  rule {
+    alert   = "OrdersApiReplicasUnavailable"
+    enabled = true
+
+    expression = <<-PROMQL
+  kube_deployment_status_replicas_available{deployment="orders-api"}
+  <
+  kube_deployment_spec_replicas{deployment="orders-api"}
+PROMQL
+
+    for      = "PT2M"
+    severity = 2
+
+    annotations = {
+      summary     = "Orders API has unavailable replicas"
+      description = "The number of available Orders API replicas is lower than the desired number of replicas."
+    }
+  }
+
+  tags = local.common_tags
+}
+
+
+

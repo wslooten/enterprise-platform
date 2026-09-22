@@ -1,0 +1,17 @@
+name: Orders API CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test runner
+        run: echo "GitHub Actions runner is working"

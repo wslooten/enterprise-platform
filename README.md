@@ -262,11 +262,23 @@ Authentication and authorization are deliberately separated.
 - Terraform-managed Key Vault RBAC assignment
 - Terraform-managed Federated Identity Credential
 
-### DevOps
+### DevOps and CI/CD
 
 - Git source control
 - GitHub repository
-- Docker build workflow
+- GitHub Actions CI/CD pipeline
+- GitHub Actions authentication to Azure using OIDC federation
+- Microsoft Entra ID federated identity for GitHub Actions
+- Passwordless Azure authentication without stored client secrets
+- Automated Docker image builds
+- Immutable Docker image tagging using the Git commit SHA
+- Automated image push to Azure Container Registry
+- Azure RBAC `AcrPush` scoped to the Orders ACR
+- AKS credentials retrieved by the CI/CD pipeline
+- Azure Kubernetes Service Cluster User Role scoped to the AKS cluster
+- Automated Orders API deployment to AKS
+- Automated Kubernetes rollout verification
+- End-to-end Git commit to running AKS workload traceability
 - Kubernetes manifests under version control
 - Terraform configuration under version control
 - Security-sensitive local scripts excluded through `.gitignore`
@@ -727,9 +739,19 @@ enterprise-platform/
 | Alert Fired Test | Complete |
 | Alert Resolved Test | Complete |
 | Application Insights | Planned |
-| GitHub Actions | Planned |
+| GitHub Actions | Complete |
+| GitHub Actions OIDC Federation | Complete |
+| Passwordless GitHub to Azure Authentication | Complete |
+| Automated Docker Build | Complete |
+| Git SHA Image Tagging | Complete |
+| Automated ACR Image Push | Complete |
+| GitHub `AcrPush` RBAC | Complete |
+| GitHub to AKS Authentication | Complete |
+| Automated AKS Deployment | Complete |
+| Automated AKS Rollout Verification | Complete |
+| Git-to-AKS Image Traceability | Complete |
+| ArgoCD / GitOps | Planned |
 | APIM-to-AKS Network Hardening | Planned |
-
 ---
 
 ## Roadmap
@@ -838,12 +860,18 @@ enterprise-platform/
 ### Phase 8 - CI/CD and GitOps
 
 - GitHub Actions
+- GitHub Actions OIDC federation with Microsoft Entra ID
+- Passwordless Azure authentication
+- Least-privilege Azure RBAC
 - Automated Docker builds
-- Automated image push to ACR
+- Git commit SHA image tagging
+- Automated image push to Azure Container Registry
 - Automated AKS deployment
-- ArgoCD / GitOps
+- Kubernetes rollout verification
+- End-to-end Git commit to AKS workload traceability
+- ArgoCD / GitOps - Planned
 
-**Status: Planned**
+**Status: In Progress**
 
 ### Phase 9 - Network Hardening
 
@@ -940,7 +968,7 @@ Security-sensitive local PowerShell scripts and local Terraform variable files a
 
 ## Next Milestone
 
-The next milestone is **Phase 8 - CI/CD and GitOps**.
+The CI/CD baseline for Phase 8 is operational.
 
 The platform now includes:
 
@@ -954,18 +982,24 @@ The platform now includes:
 - Azure Monitor Managed Prometheus
 - PromQL-based metrics monitoring
 - Azure Monitor alerting
+- GitHub Actions CI/CD
+- GitHub Actions OIDC federation with Microsoft Entra ID
+- Passwordless GitHub-to-Azure authentication
+- Automated Docker image builds
+- Git commit SHA image tagging
+- Automated image push to Azure Container Registry
+- Automated AKS deployment
+- Kubernetes rollout verification
+- End-to-end Git-to-AKS deployment traceability
 
 The next steps are:
 
-- Introduce GitHub Actions
-- Automate Docker image builds
-- Authenticate GitHub workflows securely with Azure
-- Push application images automatically to Azure Container Registry
-- Automate AKS application deployment
-- Evaluate GitOps deployment using ArgoCD
+- Introduce ArgoCD / GitOps
 - Continue APIM and AKS Infrastructure as Code
 - Harden APIM-to-AKS network access
-
+- Review private networking options
+- Review ACR network exposure
+- Evaluate Application Insights integration
 ---
 
 ## About

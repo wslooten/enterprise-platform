@@ -1,5 +1,14 @@
 name: Orders API CI/CD
 
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_CLIENT_ID: 1356b3e0-7014-4c8d-bbf5-4f2e966701d4
+  AZURE_TENANT_ID: d9b5111a-9ba2-417d-bede-5edee1c90dcf
+  AZURE_SUBSCRIPTION_ID: b839c16f-222a-4dff-8e63-4d5aadc58449
+
 on:
   push:
     branches:
@@ -12,6 +21,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Test runner
         run: echo "GitHub Actions runner is working"

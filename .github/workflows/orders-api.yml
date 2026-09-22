@@ -35,6 +35,16 @@ jobs:
       - name: Login to Azure Container Registry
         run: az acr login --name ${{ env.ACR_NAME }}
 
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group rg-aks-sweden \
+            --name aks-bootcamp \
+            --overwrite-existing
+
+      - name: Test AKS connection
+        run: kubectl get nodes
+
       - name: Test runner
         run: echo "GitHub Actions runner is working"
 

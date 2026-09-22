@@ -54,5 +54,13 @@ jobs:
       - name: Push Docker image
         run: docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
+      - name: Deploy to AKS
+        run: |
+          kubectl set image deployment/orders-api \
+            orders-api=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Verify AKS rollout
+        run: kubectl rollout status deployment/orders-api --timeout=120s
+
       
 

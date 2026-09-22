@@ -7,7 +7,7 @@ client = TestClient(app)
 def test_orders():
     response = client.get("/orders")
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     orders = response.json()
 

@@ -15,3 +15,6 @@ jobs:
 
       - name: Test runner
         run: echo "GitHub Actions runner is working"
+
+      - name: Build Docker image
+        run: docker build -t enterprise-orders-api:ci -f docker/Dockerfile .

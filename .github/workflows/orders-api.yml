@@ -9,6 +9,9 @@ env:
   AZURE_TENANT_ID: d9b5111a-9ba2-417d-bede-5edee1c90dcf
   AZURE_SUBSCRIPTION_ID: b839c16f-222a-4dff-8e63-4d5aadc58449
 
+  ACR_NAME: acrordersdev001
+  IMAGE_NAME: enterprise-orders-api
+
 on:
   push:
     branches:
@@ -29,8 +32,17 @@ jobs:
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Login to Azure Container Registry
+        run: az acr login --name ${{ env.ACR_NAME }}
+
       - name: Test runner
         run: echo "GitHub Actions runner is working"
 
       - name: Build Docker image
-        run: docker build -t enterprise-orders-api:ci -f docker/Dockerfile .
+        run: docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} -f docker/Dockerfile .
+
+      - name: Push Docker image
+        run: docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      
+

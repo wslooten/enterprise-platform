@@ -37,7 +37,7 @@ jobs:
           pip install -r tests/requirements.txt
 
       - name: Run API tests
-        run: pytest tests/test_api.py -v
+        run: python -m pytest tests/test_api.py -v
 
       - name: Azure login with OIDC
         uses: azure/login@v2

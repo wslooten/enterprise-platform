@@ -57,8 +57,7 @@ jobs:
 
       - name: Update Kubernetes manifest
         run: |
-          sed -i "s|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:.*|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}|" kubernetes/orders api.yaml
-
+         sed -i "s|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:.*|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}|" kubernetes/orders-api.yaml
       - name: Commit updated Kubernetes manifest
         run: |
           git config user.name "github-actions[bot]"

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: orders-api
-labels:
+  labels:
     gitops-test: autosync-v2
 spec:
   replicas: 2

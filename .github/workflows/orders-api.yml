@@ -16,6 +16,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "api/**"
+      - "tests/**"
+      - "Dockerfile"
+      - ".github/workflows/orders-api.yml"
 
 jobs:
   build:

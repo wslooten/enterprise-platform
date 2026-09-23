@@ -2,7 +2,7 @@ name: Orders API CI/CD
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   AZURE_CLIENT_ID: 1356b3e0-7014-4c8d-bbf5-4f2e966701d4
@@ -49,29 +49,23 @@ jobs:
       - name: Login to Azure Container Registry
         run: az acr login --name ${{ env.ACR_NAME }}
 
-      - name: Get AKS credentials
-        run: |
-          az aks get-credentials \
-            --resource-group rg-aks-sweden \
-            --name aks-bootcamp \
-            --overwrite-existing
-
-      - name: Test AKS connection
-        run: kubectl get nodes
-
       - name: Build Docker image
         run: docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} -f docker/Dockerfile .
 
       - name: Push Docker image
         run: docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Deploy to AKS
+      - name: Update Kubernetes manifest
         run: |
-          kubectl set image deployment/orders-api \
-            orders-api=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          sed -i "s|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:.*|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}|" kubernetes/orders api.yaml
 
-      - name: Verify AKS rollout
-        run: kubectl rollout status deployment/orders-api --timeout=120s
+      - name: Commit updated Kubernetes manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add kubernetes/orders-api.yaml
+          git commit -m "Update Orders API image to ${{ github.sha }}"
+          git push
 
       
 

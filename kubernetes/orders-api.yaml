@@ -18,7 +18,7 @@ spec:
       serviceAccountName: orders-api-sa
       containers:
         - name: orders-api
-          image: acrordersdev001.azurecr.io/enterprise-orders-api:4429a4b065af374bf9f726c29bb12db52b530a58
+          image: acrordersdev001.azurecr.io/enterprise-orders-api:508f42638d2dbf1b352827e31363bea8bbc83034
           ports:
             - containerPort: 8000
 

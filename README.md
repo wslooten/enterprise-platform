@@ -58,12 +58,10 @@ Microsoft Entra ID
     v
 Azure API Management
     |
-    |-- Products / Subscriptions
-    |-- API Policies
+    |-- Subscription Key
     |-- JWT Validation
-    |-- App Role Authorization
+    |-- Orders.Read Authorization
     |-- Rate Limiting
-    |
     v
 NGINX Ingress Controller
     |
@@ -86,7 +84,21 @@ User Assigned Managed Identity
     |
     | Key Vault Secrets User
     v
+Private DNS
+    |
+    | kv-orders-dev-swc-001.vault.azure.net
+    | -> 10.50.17.4
+    v
+VNet Peering
+    |
+    v
+Key Vault Private Endpoint
+    |
+    v
 Azure Key Vault
+    |
+    `-- Public network access disabled
+
 ```
 
 Container images are stored in **Azure Container Registry (ACR)** and deployed to **Azure Kubernetes Service (AKS)**.
@@ -262,29 +274,31 @@ Authentication and authorization are deliberately separated.
 - Terraform-managed Key Vault RBAC assignment
 - Terraform-managed Federated Identity Credential
 
-### DevOps and CI/CD
+### DevOps, CI/CD and GitOps
 
 - Git source control
 - GitHub repository
-- GitHub Actions CI/CD pipeline
+- GitHub Actions CI pipeline
 - GitHub Actions authentication to Azure using OIDC federation
 - Microsoft Entra ID federated identity for GitHub Actions
 - Passwordless Azure authentication without stored client secrets
+- Automated application testing
 - Automated Docker image builds
 - Immutable Docker image tagging using the Git commit SHA
 - Automated image push to Azure Container Registry
 - Azure RBAC `AcrPush` scoped to the Orders ACR
-- AKS credentials retrieved by the CI/CD pipeline
-- Azure Kubernetes Service Cluster User Role scoped to the AKS cluster
-- Automated Orders API deployment to AKS
-- Automated Kubernetes rollout verification
-- End-to-end Git commit to running AKS workload traceability
 - Kubernetes manifests under version control
+- GitHub Actions updates the desired Kubernetes image version in Git
+- ArgoCD continuous delivery to Azure Kubernetes Service
+- ArgoCD Auto-Sync
+- ArgoCD Self-Heal
+- ArgoCD Prune
+- Git as the source of truth for Kubernetes desired state
+- End-to-end Git commit to container image to AKS workload traceability
 - Terraform configuration under version control
 - Security-sensitive local scripts excluded through `.gitignore`
 - Terraform state excluded from Git
 - Local `.tfvars` excluded from Git
-
 ---
 
 ## Authentication and Authorization
@@ -746,12 +760,21 @@ enterprise-platform/
 | Git SHA Image Tagging | Complete |
 | Automated ACR Image Push | Complete |
 | GitHub `AcrPush` RBAC | Complete |
-| GitHub to AKS Authentication | Complete |
-| Automated AKS Deployment | Complete |
-| Automated AKS Rollout Verification | Complete |
-| Git-to-AKS Image Traceability | Complete |
-| ArgoCD / GitOps | Planned |
-| APIM-to-AKS Network Hardening | Planned |
+| Automated Application Testing | Complete |
+| GitOps Manifest Update | Complete |
+| ArgoCD | Complete |
+| ArgoCD Auto-Sync | Complete |
+| ArgoCD Self-Heal | Complete |
+| ArgoCD Prune | Complete |
+| Git-to-ArgoCD-to-AKS Traceability | Complete |
+| Terraform-managed Platform VNet | Complete |
+| AKS-to-Platform VNet Peering | Complete |
+| Key Vault Private Endpoint | Complete |
+| Key Vault Private DNS | Complete |
+| AKS-to-Key Vault Private Connectivity | Complete |
+| Key Vault Public Network Access Disabled | Complete |
+| APIM-to-AKS Network Hardening | In Progress |
+
 ---
 
 ## Roadmap
@@ -863,24 +886,40 @@ enterprise-platform/
 - GitHub Actions OIDC federation with Microsoft Entra ID
 - Passwordless Azure authentication
 - Least-privilege Azure RBAC
+- Automated application testing
 - Automated Docker builds
 - Git commit SHA image tagging
 - Automated image push to Azure Container Registry
-- Automated AKS deployment
-- Kubernetes rollout verification
-- End-to-end Git commit to AKS workload traceability
-- ArgoCD / GitOps - Planned
+- Automated Kubernetes manifest update in Git
+- ArgoCD deployment to AKS
+- ArgoCD Auto-Sync
+- ArgoCD Self-Heal
+- ArgoCD Prune
+- Git as the source of truth for Kubernetes desired state
+- End-to-end GitOps validation
 
-**Status: In Progress**
+**Status: Complete**
 
 ### Phase 9 - Network Hardening
 
-- Restrict direct public backend access
-- Harden APIM-to-AKS communication
-- Review private networking options
-- Review ACR network exposure
+- Terraform-managed platform VNet `vnet-orders-dev-swc-001`
+- Dedicated AKS, APIM and Private Endpoint subnets
+- Network Security Group for the future AKS subnet
+- VNet peering between the existing AKS VNet and platform VNet
+- Azure Key Vault Private Endpoint
+- Private DNS zone `privatelink.vaultcore.azure.net`
+- Private DNS integration with the platform VNet
+- Private DNS integration with the existing AKS VNet
+- Private Key Vault DNS resolution from AKS validated
+- Private TCP/443 and TLS connectivity from AKS validated
+- Orders API to Key Vault access through Workload Identity validated
+- Key Vault public network access disabled
+- End-to-end Orders API to private Key Vault access validated
+- Restrict direct public AKS ingress access - In Progress
+- Private APIM-to-AKS backend connectivity - Planned
+- Review ACR network exposure - Planned
 
-**Status: Planned**
+**Status: In Progress**
 
 ---
 
@@ -968,37 +1007,35 @@ Security-sensitive local PowerShell scripts and local Terraform variable files a
 
 ## Next Milestone
 
-The CI/CD baseline for Phase 8 is operational.
-
 The platform now includes:
 
-- End-to-end API security
-- OAuth 2.0 and JWT authorization
+- End-to-end API security with APIM, OAuth 2.0 and JWT
+- Application-role authorization using `Orders.Read`
 - AKS Workload Identity
 - Passwordless Key Vault access
 - Terraform-managed Azure infrastructure
-- Centralized AKS logging
-- KQL-based log analysis
+- Centralized AKS logging and monitoring
 - Azure Monitor Managed Prometheus
-- PromQL-based metrics monitoring
-- Azure Monitor alerting
-- GitHub Actions CI/CD
-- GitHub Actions OIDC federation with Microsoft Entra ID
-- Passwordless GitHub-to-Azure authentication
-- Automated Docker image builds
-- Git commit SHA image tagging
+- GitHub Actions CI
+- Passwordless GitHub-to-Azure authentication using OIDC
+- Automated Docker builds and immutable SHA image tagging
 - Automated image push to Azure Container Registry
-- Automated AKS deployment
-- Kubernetes rollout verification
-- End-to-end Git-to-AKS deployment traceability
+- GitOps-based continuous delivery using ArgoCD
+- ArgoCD Auto-Sync, Self-Heal and Prune
+- Terraform-managed platform networking
+- VNet peering between AKS and the platform VNet
+- Azure Key Vault Private Endpoint
+- Private DNS integration
+- Private AKS-to-Key Vault connectivity
+- Key Vault public network access disabled
 
-The next steps are:
+The next Azure platform hardening steps are:
 
-- Introduce ArgoCD / GitOps
+- Remove direct public access to the AKS backend
+- Implement private APIM-to-AKS backend connectivity
+- Enable HTTPS for the APIM API frontend
+- Review Azure Container Registry network exposure
 - Continue APIM and AKS Infrastructure as Code
-- Harden APIM-to-AKS network access
-- Review private networking options
-- Review ACR network exposure
 - Evaluate Application Insights integration
 ---
 

@@ -21,6 +21,13 @@ spec:
           image: acrordersdev001.azurecr.io/enterprise-orders-api:e1715df30fc6222e6983f30c398edb943dd6c144
           ports:
             - containerPort: 8000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
 
 ---
 apiVersion: v1

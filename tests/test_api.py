@@ -13,3 +13,9 @@ def test_orders():
 
     assert isinstance(orders, list)
     assert len(orders) > 0
+
+def test_health():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

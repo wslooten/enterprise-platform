@@ -26,6 +26,12 @@ def home():
         "message": "Enterprise Orders API"
     }
 
+@app.get("/health")
+def health():
+    return {
+        "status": "ok"
+    }
+
 @app.get("/orders")
 def get_orders():
     return orders

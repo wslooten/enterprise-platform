@@ -41,6 +41,8 @@ The platform combines:
 - Terraform
 - Git and GitHub
 
+In addition to the Azure platform, the project includes a hands-on Red Hat OpenShift lab used to explore and compare enterprise Kubernetes concepts such as Deployments, Services, Routes, RBAC, ServiceAccounts, scaling, resource management and persistent storage.
+
 The lab is continuously expanded with enterprise security, automation, Infrastructure as Code, monitoring, observability and CI/CD capabilities.
 
 ---
@@ -274,6 +276,25 @@ Authentication and authorization are deliberately separated.
 - Terraform-managed Key Vault RBAC assignment
 - Terraform-managed Federated Identity Credential
 
+### Kubernetes Reliability and Operations
+
+- CPU and memory requests and limits configured for the Orders API
+- Resource requests: `50m` CPU and `64Mi` memory
+- Resource limits: `250m` CPU and `128Mi` memory
+- Kubernetes QoS class `Burstable`
+- Node and Pod resource monitoring using `kubectl top`
+- FastAPI `/health` endpoint
+- Kubernetes readiness probe using `/health`
+- Kubernetes liveness probe using `/health`
+- Application health validation through Kubernetes
+- Pod and application log analysis using `kubectl logs`
+- Kubernetes event analysis and troubleshooting
+- Pod inspection using `kubectl describe`
+- Service connectivity testing using `kubectl port-forward`
+- HTTP endpoint validation
+- Rolling Deployment validation
+- Zero container restarts after rollout
+
 ### DevOps, CI/CD and GitOps
 
 - Git source control
@@ -282,7 +303,10 @@ Authentication and authorization are deliberately separated.
 - GitHub Actions authentication to Azure using OIDC federation
 - Microsoft Entra ID federated identity for GitHub Actions
 - Passwordless Azure authentication without stored client secrets
-- Automated application testing
+- Automated application testing using Pytest
+- Automated `/orders` API endpoint test
+- Automated `/health` endpoint test
+- CI pipeline validation before container image build
 - Automated Docker image builds
 - Immutable Docker image tagging using the Git commit SHA
 - Automated image push to Azure Container Registry
@@ -299,6 +323,33 @@ Authentication and authorization are deliberately separated.
 - Security-sensitive local scripts excluded through `.gitignore`
 - Terraform state excluded from Git
 - Local `.tfvars` excluded from Git
+---
+
+### Red Hat OpenShift Hands-on Lab
+
+In addition to AKS, this project includes hands-on experience with Red Hat OpenShift to explore enterprise Kubernetes platform concepts.
+
+Implemented and tested:
+
+- OpenShift project / namespace
+- Declarative YAML manifests
+- Deployments and Pods
+- ClusterIP Services
+- OpenShift Routes
+- Edge TLS termination
+- Route-to-Service-to-Pod connectivity
+- Horizontal scaling of application Pods
+- CPU and memory requests and limits
+- Pod resource monitoring using `oc adm top pods`
+- ServiceAccounts
+- RBAC Roles and RoleBindings
+- PersistentVolumeClaims
+- StorageClass-based persistent storage
+- Git-based configuration management
+- Deployment and troubleshooting using the `oc` CLI
+
+The OpenShift lab is used to compare Kubernetes concepts across AKS and OpenShift while maintaining the same declarative and Git-based platform engineering principles.
+
 ---
 
 ## Authentication and Authorization
@@ -690,7 +741,6 @@ enterprise-platform/
 |-- .gitignore
 `-- README.md
 ```
-
 ---
 
 ## Lab Progress
@@ -773,7 +823,22 @@ enterprise-platform/
 | Key Vault Private DNS | Complete |
 | AKS-to-Key Vault Private Connectivity | Complete |
 | Key Vault Public Network Access Disabled | Complete |
+| Kubernetes Resource Requests and Limits | Complete |
+| Kubernetes Pod and Node Monitoring | Complete |
+| FastAPI Health Endpoint | Complete |
+| Kubernetes Readiness Probe | Complete |
+| Kubernetes Liveness Probe | Complete |
+| Kubernetes Rolling Deployment Validation | Complete |
+| OpenShift Deployment | Complete |
+| OpenShift ClusterIP Service | Complete |
+| OpenShift Route with Edge TLS | Complete |
+| OpenShift Scaling | Complete |
+| OpenShift Resource Requests and Limits | Complete |
+| OpenShift ServiceAccount and RBAC | Complete |
+| OpenShift PersistentVolumeClaim | Complete |
+| OpenShift StorageClass Integration | Complete |
 | APIM-to-AKS Network Hardening | In Progress |
+
 
 ---
 
@@ -921,6 +986,25 @@ enterprise-platform/
 
 **Status: In Progress**
 
+### Automated API Onboarding
+
+Planned next phase of the Enterprise Platform bootcamp:
+
+- OpenAPI as the API contract
+- Automated API onboarding into Azure API Management
+- APIM configuration managed with Terraform
+- Automated backend registration
+- APIM policies as code
+- CI/CD-driven API onboarding
+- Standardized API deployment templates
+- Azure Service Bus integration
+- Identity and secret integration
+- Monitoring and observability for onboarded APIs
+- Self-service API onboarding
+- End-to-end onboarding of a second API
+
+**Status: Planned**
+
 ---
 
 ## Learning Journey
@@ -1043,7 +1127,7 @@ The next Azure platform hardening steps are:
 
 This repository is part of my continuous professional development in modern cloud-native integration platforms.
 
-My background includes **25+ years of Enterprise IT experience**, with expertise in integration, middleware, API management, security and DevOps.
+My background includes **29+ years of professional IT experience**, starting in 1997 on a skilled ICT helpdesk and developing into senior roles across infrastructure, middleware, integration, security, DevOps and platform engineering.
 
 The project combines that experience with modern technologies including Azure API Management, Kubernetes, AKS, Microsoft Entra ID, Terraform and Azure Workload Identity.
 
@@ -1073,4 +1157,4 @@ Focus areas:
 
 ---
 
-> **25+ years of enterprise integration experience - continuously evolving toward modern cloud-native platform engineering.**
+> **29+ years of professional IT experience - from infrastructure and operations to enterprise integration, security, DevOps and modern cloud-native platform engineering.**
